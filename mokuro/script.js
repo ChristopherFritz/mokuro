@@ -57,6 +57,9 @@ document.addEventListener('DOMContentLoaded', function () {
     loadState();
     num_pages = document.getElementsByClassName("page").length;
 
+    storeNumberOfPages(num_pages);
+    storeCoverImage();
+
     pz = panzoom(pc, {
         bounds: true,
         boundsPadding: 0.05,
@@ -539,4 +542,60 @@ function eInkRefresh() {
         pc.classList.remove("inverted");
         document.body.style.backgroundColor = r.style.getPropertyValue("--colorBackground");
     }, 300);
+}
+
+function storeNumberOfPages(num_pages) {
+
+    if (state.last_page_idx !== undefined) {
+        return;
+    }
+
+    state.last_page_idx = num_pages;
+
+    saveState();
+
+}
+
+function storeCoverImage() {
+
+    if (state.cover_page !== undefined) {
+        return
+    }
+
+    // Check the first, second, and last files.
+    let possibleCovers = [
+        decodeURI(getPage(0).firstChild.style.backgroundImage.slice(5, -2)),
+        decodeURI(getPage(1).firstChild.style.backgroundImage.slice(5, -2)),
+        decodeURI(getPage(state.last_page_idx-1).firstChild.style.backgroundImage.slice(5, -2))];
+    let expectedCoverNames = ['i-000a', 'cover_omo', 'cover'];
+
+    for (c in expectedCoverNames) {
+        const match = possibleCovers.find(i => i.includes(expectedCoverNames[c]));
+        if (match === undefined) {
+            continue;
+        }
+        state.cover_page = match.split('/').pop();
+        break;
+    }
+
+    // TODO: Test this.
+    if (state.cover_page === undefined) {
+        // Look for "cover" across all the remaining pages.
+        for (p = 2; p < state.last_page_idx-2; p++) {
+            const image_path = decodeURI(getPage(p).firstChild.style.backgroundImage.slice(5, -2));
+            const image_filename = image_path.split('/').pop();
+            if (image_filename.toLowerCase().includes("cover")) {
+                state.cover_page = image_filename;
+                break;
+            }
+        }
+    }
+
+    // No cover image was found.  Use the first image.
+    if (state.cover_page === undefined) {
+        const image_path = decodeURI(getPage(0).firstChild.style.backgroundImage.slice(5, -2));
+        state.cover_page = image_path.split('/').pop();
+    }
+
+    saveState();
 }
